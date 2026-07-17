@@ -1,0 +1,51 @@
+{
+	"name": "kilo-code-rtl",
+	"displayName": "Kilo Code RTL Support",
+	"description": "Adds automatic RTL (Right-to-Left) text support for Persian/Farsi, Arabic and Hebrew to the Kilo Code chat panel, while keeping code blocks LTR.",
+	"version": "0.1.0",
+	"publisher": "local",
+	"author": {
+		"name": "Mohammad Mahdi Khosravi",
+		"email": "mm.khosravi@gmail.com"
+	},
+	"license": "MIT",
+	"engines": {
+		"vscode": "^1.105.1"
+	},
+	"categories": [
+		"Other"
+	],
+	"keywords": [
+		"rtl",
+		"persian",
+		"farsi",
+		"arabic",
+		"hebrew",
+		"kilo-code",
+		"bidi"
+	],
+	"activationEvents": [
+		"onStartupFinished"
+	],
+	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "kiloRtl.activate",
+				"title": "Kilo RTL: Activate"
+			},
+			{
+				"command": "kiloRtl.deactivate",
+				"title": "Kilo RTL: Deactivate"
+			},
+			{
+				"command": "kiloRtl.status",
+				"title": "Kilo RTL: Check Status"
+			}
+		]
+	},
+	"scripts": {
+		"build": "tsc -p .",
+		"package": "vsce package"
+	}
+}
