@@ -2,6 +2,10 @@
 
 Adds automatic RTL (Right-to-Left) text support for Persian/Farsi, Arabic, and Hebrew to the **Kilo Code** chat panel, the **Claude Code** chat panel, and **Markdown preview**, while keeping code blocks, tool output, and diffs LTR.
 
+## Why this exists
+
+This isn't a personal-comfort tool - it's a correctness/safety fix. While using AI models on real organizational projects, garbled Persian text made model responses genuinely hard to read correctly, and misreading an instruction, a technical detail, or a decision in that context is a real risk, not a minor annoyance. The off-the-shelf third-party RTL extension available at the time didn't work correctly either, so this had to be built/fixed directly. Scope stays bounded to that need: read AI output correctly and safely, nothing more.
+
 ## Features
 
 - Automatic RTL detection for Persian/Arabic/Hebrew text in chat messages and Markdown preview, using a first-strong-character heuristic (same idea as native `dir="auto"`) so parentheses, digits, and punctuation anywhere in the text never trigger or block a direction flip
@@ -30,7 +34,7 @@ Adds automatic RTL (Right-to-Left) text support for Persian/Farsi, Arabic, and H
 
 - **Activate**: Runs "Kilo RTL: Activate" from Command Palette - patches whichever of Kilo Code / Claude Code is installed
 - **Deactivate**: Runs "Kilo RTL: Deactivate" from Command Palette
-- **Toggle**: Click the ⇄ button in the top-right corner of the chat panel
+- **Toggle**: Click the ⇄ button in the bottom-right corner of the chat panel
 - **Status**: Check status bar indicator or run "Kilo RTL: Check Status"
 - **Markdown preview**: RTL is auto-detected per block, no command needed - just open the built-in Markdown preview on a Persian/Arabic/Hebrew `.md` file
 
