@@ -3,12 +3,20 @@ const vscode = require("vscode");
 const fs = require("fs/promises");
 const path = require("path");
 
-const KILO_EXTENSION_ID = "kilocode.kilo-code";
 const CSS_BEGIN = "/* Kilo RTL Text Support - Added by Kilo Code RTL Support */";
 const CSS_END = "/* End Kilo RTL Text Support */";
 const JS_BEGIN = "/* Kilo RTL Auto-Direction Script - Injected by Kilo Code RTL Support */";
 const JS_END = "/* End Kilo RTL Auto-Direction Script */";
 const STATE_KEY = "kiloRtl.mode";
+
+// Each installed target gets the same CSS/JS pair patched into its webview
+// assets. Adding a new AI chat extension here is the only step needed to
+// support it - rtl-inject.js/css already use hash-agnostic `[class*="x"]`
+// selectors that work across apps built with the same CSS-module convention.
+const TARGETS = [
+	{ id: "kilocode.kilo-code", name: "Kilo Code", cssRel: ["dist", "webview.css"], jsRel: ["dist", "webview.js"] },
+	{ id: "anthropic.claude-code", name: "Claude Code", cssRel: ["webview", "index.css"], jsRel: ["webview", "index.js"] },
+];
 
 let statusBarItem;
 let outputChannel;
@@ -18,15 +26,23 @@ function getOutput() {
 	return outputChannel;
 }
 
-function findKiloCodePaths() {
-	const ext = vscode.extensions.getExtension(KILO_EXTENSION_ID);
-	if (!ext) return null;
-	const dir = ext.extensionPath;
-	return {
-		dir,
-		cssPath: path.join(dir, "dist", "webview.css"),
-		jsPath: path.join(dir, "dist", "webview.js"),
-	};
+function findAllTargetPaths(log) {
+	const found = [];
+	for (const t of TARGETS) {
+		const ext = vscode.extensions.getExtension(t.id);
+		if (!ext) {
+			if (log) log.push(`  ${t.name}: not installed, skipping`);
+			continue;
+		}
+		const dir = ext.extensionPath;
+		found.push({
+			name: t.name,
+			dir,
+			cssPath: path.join(dir, ...t.cssRel),
+			jsPath: path.join(dir, ...t.jsRel),
+		});
+	}
+	return found;
 }
 
 async function exists(p) {
@@ -51,6 +67,10 @@ async function atomicWrite(filePath, content) {
 
 async function patchFile(filePath, injected, beginMarker, endMarker, label, log) {
 	try {
+		if (!(await exists(filePath))) {
+			log.push(`  ${label}: not found at expected path, skipping`);
+			return false;
+		}
 		const backupPath = `${filePath}.bak`;
 		if (await exists(backupPath)) {
 			await fs.copyFile(backupPath, filePath);
@@ -105,29 +125,30 @@ async function isPatched(filePath, marker) {
 }
 
 async function activateRtl() {
-	const paths = findKiloCodePaths();
 	const out = getOutput();
 	out.clear();
-	if (!paths) {
-		vscode.window.showWarningMessage("Kilo RTL: Kilo Code extension (kilocode.kilo-code) not found.");
-		return false;
-	}
-	if (!(await exists(paths.cssPath)) || !(await exists(paths.jsPath))) {
-		vscode.window.showWarningMessage(
-			"Kilo RTL: Kilo Code webview assets not found at the expected path. The extension layout may have changed.",
-		);
-		return false;
-	}
 	const log = [];
+	const targets = findAllTargetPaths(log);
+	if (targets.length === 0) {
+		log.forEach((l) => out.appendLine(l));
+		out.show(true);
+		vscode.window.showWarningMessage("Kilo RTL: none of the supported extensions (Kilo Code, Claude Code) are installed.");
+		return false;
+	}
 	const jsInjected = `${JS_BEGIN}\n${await fs.readFile(path.join(__dirname, "rtl-inject.js"), "utf-8")}\n${JS_END}`;
 	const cssInjected = `${CSS_BEGIN}\n${await fs.readFile(path.join(__dirname, "rtl-inject.css"), "utf-8")}\n${CSS_END}`;
-	const cssChanged = await patchFile(paths.cssPath, cssInjected, CSS_BEGIN, CSS_END, "CSS", log);
-	const jsChanged = await patchFile(paths.jsPath, jsInjected, JS_BEGIN, JS_END, "JS", log);
+	let anyChanged = false;
+	for (const t of targets) {
+		log.push(`${t.name}:`);
+		const cssChanged = await patchFile(t.cssPath, cssInjected, CSS_BEGIN, CSS_END, "CSS", log);
+		const jsChanged = await patchFile(t.jsPath, jsInjected, JS_BEGIN, JS_END, "JS", log);
+		if (cssChanged || jsChanged) anyChanged = true;
+	}
 	log.forEach((l) => out.appendLine(l));
-	if (cssChanged || jsChanged) {
+	if (anyChanged) {
 		out.show(true);
 		const choice = await vscode.window.showInformationMessage(
-			"Kilo RTL: patched. Reload the window to apply (close any open Kilo Code panel first).",
+			"Kilo RTL: patched. Reload the window to apply (close any open chat panel first).",
 			"Reload Now",
 		);
 		if (choice === "Reload Now") vscode.commands.executeCommand("workbench.action.reloadWindow");
@@ -136,18 +157,25 @@ async function activateRtl() {
 }
 
 async function deactivateRtl() {
-	const paths = findKiloCodePaths();
 	const out = getOutput();
 	out.clear();
-	if (!paths) {
-		vscode.window.showWarningMessage("Kilo RTL: Kilo Code extension not found.");
+	const log = [];
+	const targets = findAllTargetPaths(log);
+	if (targets.length === 0) {
+		log.forEach((l) => out.appendLine(l));
+		out.show(true);
+		vscode.window.showWarningMessage("Kilo RTL: none of the supported extensions (Kilo Code, Claude Code) are installed.");
 		return;
 	}
-	const log = [];
-	const cssChanged = await unpatchFile(paths.cssPath, "CSS", log);
-	const jsChanged = await unpatchFile(paths.jsPath, "JS", log);
+	let anyChanged = false;
+	for (const t of targets) {
+		log.push(`${t.name}:`);
+		const cssChanged = await unpatchFile(t.cssPath, "CSS", log);
+		const jsChanged = await unpatchFile(t.jsPath, "JS", log);
+		if (cssChanged || jsChanged) anyChanged = true;
+	}
 	log.forEach((l) => out.appendLine(l));
-	if (cssChanged || jsChanged) {
+	if (anyChanged) {
 		out.show(true);
 		const choice = await vscode.window.showInformationMessage("Kilo RTL: removed. Reload the window to apply.", "Reload Now");
 		if (choice === "Reload Now") vscode.commands.executeCommand("workbench.action.reloadWindow");
@@ -155,35 +183,44 @@ async function deactivateRtl() {
 }
 
 async function showStatus() {
-	const paths = findKiloCodePaths();
 	const out = getOutput();
 	out.clear();
 	out.appendLine(`IDE: ${vscode.env.appName}`);
-	if (!paths) {
-		out.appendLine("Kilo Code extension not found.");
-		out.show(true);
-		return;
+	const log = [];
+	const targets = findAllTargetPaths(log);
+	log.forEach((l) => out.appendLine(l));
+	if (targets.length === 0) {
+		out.appendLine("No supported extensions (Kilo Code, Claude Code) found.");
 	}
-	out.appendLine(`Kilo Code path: ${paths.dir}`);
-	out.appendLine(`CSS patched: ${await isPatched(paths.cssPath, CSS_BEGIN)}`);
-	out.appendLine(`JS patched: ${await isPatched(paths.jsPath, JS_BEGIN)}`);
-	out.appendLine(`CSS backup exists: ${await exists(`${paths.cssPath}.bak`)}`);
-	out.appendLine(`JS backup exists: ${await exists(`${paths.jsPath}.bak`)}`);
+	for (const t of targets) {
+		out.appendLine(`${t.name} path: ${t.dir}`);
+		out.appendLine(`  CSS patched: ${await isPatched(t.cssPath, CSS_BEGIN)}`);
+		out.appendLine(`  JS patched: ${await isPatched(t.jsPath, JS_BEGIN)}`);
+		out.appendLine(`  CSS backup exists: ${await exists(`${t.cssPath}.bak`)}`);
+		out.appendLine(`  JS backup exists: ${await exists(`${t.jsPath}.bak`)}`);
+	}
+	out.appendLine("Markdown preview: RTL auto-detection is always active for .md files (no patching needed).");
 	out.show(true);
 	updateStatusBar();
 }
 
 async function updateStatusBar() {
 	if (!statusBarItem) return;
-	const paths = findKiloCodePaths();
-	if (!paths) {
+	const targets = findAllTargetPaths();
+	if (targets.length === 0) {
 		statusBarItem.text = "$(globe) Kilo RTL: N/A";
-		statusBarItem.tooltip = "Kilo Code extension not found";
+		statusBarItem.tooltip = "Kilo Code / Claude Code not found";
 		return;
 	}
-	const patched = await isPatched(paths.cssPath, CSS_BEGIN);
-	statusBarItem.text = patched ? "$(globe) Kilo RTL: Active" : "$(globe) Kilo RTL: Inactive";
-	statusBarItem.tooltip = "Click to manage Kilo Code RTL support";
+	let anyPatched = false;
+	for (const t of targets) {
+		if (await isPatched(t.cssPath, CSS_BEGIN)) {
+			anyPatched = true;
+			break;
+		}
+	}
+	statusBarItem.text = anyPatched ? "$(globe) Kilo RTL: Active" : "$(globe) Kilo RTL: Inactive";
+	statusBarItem.tooltip = "Click to manage Kilo/Claude RTL support";
 }
 
 function activate(context) {

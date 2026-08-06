@@ -11,6 +11,8 @@ if not exist "out" mkdir out
 copy /Y extension.js out\extension.js >nul
 copy /Y rtl-inject.js out\rtl-inject.js >nul
 copy /Y rtl-inject.css out\rtl-inject.css >nul
+copy /Y markdown-rtl.js out\markdown-rtl.js >nul
+copy /Y markdown-rtl.css out\markdown-rtl.css >nul
 echo Done.
 echo.
 

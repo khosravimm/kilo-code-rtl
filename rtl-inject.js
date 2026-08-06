@@ -4,11 +4,39 @@
 	window.__kiloRtlInstalled = true;
 
 	var RTL_CHAR = /[֐-׿؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
+	// Strong LTR: Latin, Greek, Cyrillic letters. Used only to find the first
+	// *strong* character (Unicode bidi P2/P3-style heuristic) so neutral
+	// characters like parentheses, digits, and punctuation - anywhere in the
+	// text, not just at the edges - never flip or confuse the detection.
+	var STRONG_LTR_CHAR = /[A-Za-zÀ-ɏͰ-ϿЀ-ӿ]/;
+	var STRONG_CHAR = /[A-Za-zÀ-ɏͰ-ϿЀ-ӿ֐-׿؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
 	var CLS = "kiloRtl";
 	var STORAGE_KEY = "kiloRtlEnabled";
 
-	var BLOCK_SEL = '[class*="userMessage"], [class*="assistantMessage"], [class*="content_"], [class*="header_"], p, li, ul, ol, blockquote, h1, h2, h3, h4, h5, h6, td, th, dd, dt';
-	var SKIP_ANCESTOR_SEL = 'pre, code, input, textarea, select, [contenteditable="false"], .monaco-editor, [class*="codeBlock"], [class*="thinking"]';
+	// Block selectors use `[class*="x"]` substring matching on purpose: both
+	// Kilo Code and Claude Code webviews use CSS-module class names with a
+	// random hash suffix (e.g. Claude's `userMessage_07S1Yg`, `content_xGDvVg`,
+	// `messagesContainer_07S1Yg`). Substring matching means the same selector
+	// list works across both apps' hashed class names without hardcoding any
+	// hash, and keeps working across app updates that only change the hash.
+	var BLOCK_SEL =
+		'[class*="userMessage"], [class*="assistantMessage"], [class*="content_"], [class*="header_"], ' +
+		'[class*="messagesContainer_"], [class*="questionBlock_"], [class*="questionHeader_"], ' +
+		'[class*="answerText_"], [class*="optionText_"], [class*="optionContent_"], ' +
+		'p, li, ul, ol, blockquote, h1, h2, h3, h4, h5, h6, td, th, dd, dt';
+	// Anything editable must never be touched by this script: toggling
+	// direction/text-align on a focused input while the user is typing
+	// resets caret position mid-word and scrambles further keystrokes -
+	// this is the "typing parentheses/certain characters wrecks the text"
+	// bug. `[contenteditable]` (no value = defaults to true) covers rich
+	// chat inputs; `[contenteditable="false"]` is kept for clarity/safety.
+	// `toolUse_`/`toolBody_`/`toolResult_`/`diffEditorWrapper_`/`slashCommand`
+	// are Claude Code's tool-call and diff panels - always technical/LTR
+	// content, same category as code blocks.
+	var SKIP_ANCESTOR_SEL =
+		'pre, code, input, textarea, select, [contenteditable], [contenteditable="false"], [role="textbox"], ' +
+		'.monaco-editor, [class*="codeBlock"], [class*="thinking"], [class*="toolUse_"], [class*="toolBody_"], ' +
+		'[class*="toolResult_"], [class*="toolSummary_"], [class*="diffEditorWrapper_"], [class*="slashCommand"]';
 
 	var enabled = true;
 	try {
@@ -16,14 +44,30 @@
 		if (saved !== null) enabled = saved !== "0";
 	} catch (e) {}
 
+	// First-strong-character heuristic (same idea as native HTML `dir="auto"`):
+	// scan for the first character that is *strongly* directional (a real
+	// letter, not a paren/digit/space/punctuation mark) and decide RTL/LTR
+	// from that alone. A stray "(" or ")" anywhere in the string can never
+	// by itself trigger or block a direction change.
 	function isRtl(text) {
-		return RTL_CHAR.test(text || "");
+		text = text || "";
+		var m = STRONG_CHAR.exec(text);
+		if (!m) return false;
+		return !STRONG_LTR_CHAR.test(m[0]);
+	}
+
+	function isEditableRegion(el) {
+		if (!el) return false;
+		if (el === document.activeElement) return true;
+		if (el.contains && document.activeElement && el.contains(document.activeElement)) return true;
+		return false;
 	}
 
 	function apply(el) {
 		if (!el || el.nodeType !== 1) return;
 		if (!el.matches || !el.matches(BLOCK_SEL)) return;
 		if (el.closest && el.closest(SKIP_ANCESTOR_SEL)) return;
+		if (isEditableRegion(el)) return;
 		if (!enabled) {
 			if (el.classList.contains(CLS)) el.classList.remove(CLS);
 			return;

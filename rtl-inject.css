@@ -54,9 +54,24 @@ code,
 .monaco-editor .view-overlays,
 .monaco-editor .margin-view-overlays,
 [class*="codeBlock"],
-[class*="thinking"] {
+[class*="thinking"],
+[class*="toolUse_"],
+[class*="toolBody_"],
+[class*="toolResult_"],
+[class*="toolSummary_"],
+[class*="diffEditorWrapper_"],
+[class*="slashCommand"] {
 	direction: ltr !important;
 	unicode-bidi: isolate !important;
 	text-align: left !important;
+}
+
+/* Claude Code message bubbles - pin to the right edge like Kilo's, once
+   flagged RTL by rtl-inject.js */
+[class*="userMessage"].kiloRtl,
+[class*="userMessageContainer_"].kiloRtl {
+	align-items: flex-end !important;
+	margin-left: auto !important;
+	margin-right: 0 !important;
 }
 /* End Kilo RTL Text Support */

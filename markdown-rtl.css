@@ -1,0 +1,32 @@
+/* Kilo RTL - Markdown Preview support */
+
+.mdRtl {
+	direction: rtl;
+	text-align: right;
+	unicode-bidi: isolate;
+}
+
+ul.mdRtl,
+ol.mdRtl {
+	padding-left: 0;
+	padding-right: 1.5em;
+}
+
+blockquote.mdRtl {
+	border-left: none;
+	border-right: 3px solid var(--vscode-textBlockQuote-border, currentColor);
+	padding-left: 0;
+	padding-right: 12px;
+}
+
+table.mdRtl th,
+table.mdRtl td {
+	text-align: right;
+}
+
+pre,
+code {
+	direction: ltr;
+	unicode-bidi: isolate;
+	text-align: left;
+}

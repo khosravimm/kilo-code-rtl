@@ -1,8 +1,8 @@
 {
 	"name": "kilo-code-rtl",
 	"displayName": "Kilo Code RTL Support",
-	"description": "Adds automatic RTL (Right-to-Left) text support for Persian/Farsi, Arabic and Hebrew to the Kilo Code chat panel, while keeping code blocks LTR.",
-	"version": "0.1.0",
+	"description": "Adds automatic RTL (Right-to-Left) text support for Persian/Farsi, Arabic and Hebrew to the Kilo Code chat panel, the Claude Code chat panel, and Markdown preview, while keeping code blocks LTR.",
+	"version": "0.2.0",
 	"publisher": "local",
 	"author": {
 		"name": "Mohammad Mahdi Khosravi",
@@ -42,7 +42,9 @@
 				"command": "kiloRtl.status",
 				"title": "Kilo RTL: Check Status"
 			}
-		]
+		],
+		"markdown.previewStyles": ["./out/markdown-rtl.css"],
+		"markdown.previewScripts": ["./out/markdown-rtl.js"]
 	},
 	"scripts": {
 		"build": "tsc -p .",
