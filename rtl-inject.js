@@ -56,6 +56,19 @@
 		return !STRONG_LTR_CHAR.test(m[0]);
 	}
 
+	// Majority-vote heuristic, used only for <ol>/<ul> containers: a list is
+	// judged by which script has more *strong* characters across all its
+	// items combined, not just the first one. First-strong-char alone would
+	// pick a list's direction off of item #1's first character (e.g. an
+	// English proper noun opening the item), which mismatches the other,
+	// mostly-Persian items in the same list.
+	function isRtlMajority(text) {
+		text = text || "";
+		var rtlCount = (text.match(new RegExp(RTL_CHAR.source, "g")) || []).length;
+		var ltrCount = (text.match(new RegExp(STRONG_LTR_CHAR.source, "g")) || []).length;
+		return rtlCount > ltrCount;
+	}
+
 	function isEditableRegion(el) {
 		if (!el) return false;
 		if (el === document.activeElement) return true;
@@ -72,7 +85,22 @@
 			if (el.classList.contains(CLS)) el.classList.remove(CLS);
 			return;
 		}
-		var rtl = isRtl(el.textContent);
+		var rtl;
+		var tag = el.tagName;
+		if (tag === "OL" || tag === "UL") {
+			rtl = isRtlMajority(el.textContent);
+		} else if (tag === "LI") {
+			// A list item never decides its own direction: <ol> counters and
+			// marker positioning are computed per-list, not per-item, so a
+			// numbered list with a mix of English-first and Persian-first
+			// items would otherwise end up with mismatched item directions -
+			// which silently drops list markers (e.g. "3." disappearing).
+			// Every item instead inherits its parent list's direction.
+			var list = el.closest("ol, ul");
+			rtl = list ? isRtlMajority(list.textContent) : isRtl(el.textContent);
+		} else {
+			rtl = isRtl(el.textContent);
+		}
 		if (rtl) {
 			if (!el.classList.contains(CLS)) el.classList.add(CLS);
 		} else if (el.classList.contains(CLS)) {

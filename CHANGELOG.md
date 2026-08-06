@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 - 2026-08-06
+
+### Fixed
+- **Numbered lists losing markers (e.g. "3." disappearing):** each `<li>` was judged independently by its own first-strong-character, so a list with an English-first item ("**Kilo Code** ...") next to a Persian-first item ("**پیش‌نمایش** ...") ended up with mismatched per-item `direction` inside the same `<ol>` - which breaks the browser's marker/counter rendering for that list. List items now inherit their parent `<ol>`/`<ul>`'s direction instead of deciding on their own; the list itself is judged by a majority-of-strong-characters vote across all its items combined (not just item #1's first character), so a mostly-Persian list reads RTL as a whole even if item #1 happens to open with an English term.
+- **Toggle button overlapping the app's own header icons (e.g. "New Chat"):** moved from top-right (both Kilo Code and Claude Code have their own icon row along the top edge) to bottom-right, just above the compose box, in both apps.
+
 ## 0.2.0 - 2026-08-06
 
 ### Fixed

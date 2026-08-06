@@ -19,11 +19,16 @@ blockquote.kiloRtl {
 }
 
 #kilo-rtl-btn {
+	/* Bottom-right, not top-right: both Kilo Code and Claude Code have their
+	   own icon row (new chat/history/etc.) along the top edge of the panel,
+	   which a top-right fixed button collides with. The bottom-right corner,
+	   just above the compose box, is empty in both apps. */
 	position: fixed;
-	top: 6px;
-	right: 6px !important;
+	bottom: 8px;
+	right: 8px !important;
+	top: auto !important;
 	left: auto !important;
-	inset-inline-end: 6px;
+	inset-inline-end: 8px;
 	inset-inline-start: auto;
 	z-index: 2147483647;
 	font-size: 12px;
