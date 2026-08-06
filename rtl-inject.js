@@ -124,19 +124,62 @@
 		}
 	}
 
+	// Assistant replies stream in token-by-token, which fires a
+	// `characterData` mutation on nearly every token - each one
+	// recomputing direction for every ancestor of a paragraph/list that is
+	// still actively growing. Toggling `direction`/`text-align` on an
+	// ancestor while the browser is mid-layout for a text node that is
+	// itself still being appended to is a known source of stale/incorrect
+	// bidi visual reordering that can stick even after the text settles
+	// (the DOM text is correct - only the *paint* is wrong). Coalescing
+	// bursts of mutations into one re-apply after they pause fixes this and
+	// is also just cheaper than reacting on every single token.
+	var pendingCharTargets = null;
+	var pendingChildTargets = null;
+	var flushTimer = null;
+	var DEBOUNCE_MS = 120;
+
+	function flushPending() {
+		flushTimer = null;
+		if (pendingChildTargets) {
+			pendingChildTargets.forEach(function (nd) {
+				scanSubtree(nd);
+			});
+			pendingChildTargets = null;
+		}
+		if (pendingCharTargets) {
+			pendingCharTargets.forEach(function (parent) {
+				reapplyAncestors(parent);
+			});
+			pendingCharTargets = null;
+		}
+	}
+
+	function scheduleFlush() {
+		if (flushTimer) clearTimeout(flushTimer);
+		flushTimer = setTimeout(flushPending, DEBOUNCE_MS);
+	}
+
 	function handleMutations(muts) {
 		for (var i = 0; i < muts.length; i++) {
 			var m = muts[i];
 			if (m.type === "childList") {
 				for (var j = 0; j < m.addedNodes.length; j++) {
 					var nd = m.addedNodes[j];
-					if (nd.nodeType === 1) scanSubtree(nd);
+					if (nd.nodeType === 1) {
+						if (!pendingChildTargets) pendingChildTargets = new Set();
+						pendingChildTargets.add(nd);
+					}
 				}
 			} else if (m.type === "characterData") {
 				var parent = m.target.parentElement;
-				if (parent) reapplyAncestors(parent);
+				if (parent) {
+					if (!pendingCharTargets) pendingCharTargets = new Set();
+					pendingCharTargets.add(parent);
+				}
 			}
 		}
+		scheduleFlush();
 	}
 
 	function updateButton() {

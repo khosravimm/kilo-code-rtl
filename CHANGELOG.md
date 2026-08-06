@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2 - 2026-08-06
+
+### Fixed
+- **Word-order-looking scrambling in streamed messages containing mixed Persian/English inline text** (e.g. a bullet line mentioning `push`, `Commit`, and a URL among Persian text rendering with chunks visually out of order once the message finished streaming). Root cause: assistant replies stream in token-by-token, firing a `characterData` DOM mutation on nearly every token; the script was recomputing and toggling `direction`/`text-align` on every ancestor of a paragraph/list on *every single one* of those mutations, i.e. dozens of times per second on text that was still being appended to. Toggling direction on an ancestor while a browser is mid-layout for a text node that's itself still growing is a known way to get a stale/incorrect bidi visual reorder that can stick even after the text is fully settled - the underlying DOM text was never actually corrupted, only the paint was wrong. Mutation bursts are now coalesced and re-applied once ~120ms after they pause, instead of on every token.
+
 ## 0.2.1 - 2026-08-06
 
 ### Fixed
