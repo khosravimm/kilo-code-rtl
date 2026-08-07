@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.4 - 2026-08-07
+
+### Fixed
+- **Paragraphs with severely reordered word order** (e.g. a mostly-Persian paragraph rendering with its final sentence appearing first) when the paragraph happened to open with an English proper noun or tool name (`"Codex این کامنت جدید ..."`). Root cause: same defect class as the 0.2.3 table fix and 0.2.1 list fix, one level up - plain blocks (`p`, headers, blockquote, and the chat-bubble container elements) were still judged by first-strong-character only, so a 95%-Persian paragraph starting with one English word was misclassified as LTR and lost correct direction/alignment inheritance. All blocks now use the majority-of-strong-characters vote already used for lists and tables.
+
+## 0.2.3 - 2026-08-07
+
+### Fixed
+- **Markdown tables looking scrambled** (a Persian-first cell right-aligned next to an English-first cell in the same row/column staying left-aligned, e.g. a "Missing Enforcement" gap-type cell breaking with its all-Persian neighbors in the same table). Root cause: same class of bug as the 0.2.1 list fix - each `<td>`/`<th>` was judged independently by its own first-strong-character, so a table mixing an English category label with a Persian description in one cell ended up with inconsistent per-cell `direction`/`text-align` across the same table. Cells now inherit their parent `<table>`'s majority-vote direction instead of deciding on their own.
+
 ## 0.2.2 - 2026-08-06
 
 ### Fixed

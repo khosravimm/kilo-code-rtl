@@ -98,8 +98,27 @@
 			// Every item instead inherits its parent list's direction.
 			var list = el.closest("ol, ul");
 			rtl = list ? isRtlMajority(list.textContent) : isRtl(el.textContent);
+		} else if (tag === "TD" || tag === "TH") {
+			// Same reasoning as LI above: a cell never decides its own
+			// direction. Markdown tables routinely mix an English term
+			// (category label) with a Persian description in one cell
+			// ("Missing Enforcement — قاعده..."), so per-cell
+			// first-strong-char judged some cells LTR and others RTL
+			// within the same table, breaking text-align consistency
+			// across rows/columns. Every cell instead inherits its
+			// table's majority-vote direction.
+			var table = el.closest("table");
+			rtl = table ? isRtlMajority(table.textContent) : isRtl(el.textContent);
 		} else {
-			rtl = isRtl(el.textContent);
+			// Plain blocks (p, headers, blockquote, chat-bubble containers, ...)
+			// used first-strong-character only. That misclassifies a mostly-
+			// Persian paragraph that happens to open with an English proper
+			// noun or tool name (e.g. "Codex این کامنت جدید ...") as LTR,
+			// which then fails to inherit direction/text-align correctly and
+			// renders with severely reordered word order - the same root
+			// defect class already fixed for OL/UL/LI and TD/TH above. Every
+			// block is now judged by majority of strong characters instead.
+			rtl = isRtlMajority(el.textContent);
 		}
 		if (rtl) {
 			if (!el.classList.contains(CLS)) el.classList.add(CLS);
